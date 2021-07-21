@@ -1,0 +1,55 @@
+﻿$numberOfGroups = 255
+$objectIdToAddToGroups = "{object id}" # could be a user object id or a device object id, etc.
+$groupNameFormat = "TEST_{0:0000}"
+
+Function Create-TestGroups {
+    [cmdletbinding()]
+    Param (
+        [bool]$deleteIfExists
+    )
+
+    $groupName = ""
+
+    for ($i = 1; $i -lt $numberOfGroups + 1; $i++){
+        $groupName = $groupNameFormat -f $i
+        $group = Get-AzureADGroup -SearchString $groupName # see if the group exists
+
+        if ($deleteIfExists -and $group){
+            if ($group){
+                Remove-AzureADGroup -ObjectId $group.ObjectId
+            }
+        } elseif (!$group) {
+            $group = New-AzureAdGroup -DisplayName $groupName -Description $groupName -SecurityEnabled $true -MailEnabled $false -MailNickName $groupName
+        } else {
+            Write-Host "Group already exists so skipping this action..."
+        }
+
+        # add the desired object id to the group
+        Add-AzureADGroupMember -ObjectId $group.ObjectId -RefObjectId $objectIdToAddToGroups
+        Write-Host "Object $objectIdToAddToGroups added to group $groupName"
+
+    }
+
+}
+
+Function Delete-TestGroups {
+
+    $groupName = ""
+
+    for ($i = 1; $i -lt $numberOfGroups + 1; $i++){
+        $groupName = $groupNameFormat -f $i
+        $group = Get-AzureADGroup -SearchString $groupName # see if the group exists
+
+        if ($group){
+            Remove-AzureADGroup -ObjectId $group.ObjectId
+            Write-Host "Group $groupName deleted..."
+        }
+    }
+}
+
+Connect-AzureAD
+
+Create-TestGroups -deleteIfExists $false
+#Delete-TestGroups
+
+Disconnect-AzureAD
