@@ -155,10 +155,11 @@ namespace MSAL.Net_GroupOveragesClaim
             } else
             {
 				Console.WriteLine("\nNo group overages claim found in token...");
-            }
+				Console.WriteLine($"\nPress any key to exit...");
+				Console.ReadKey();            
+			}
 
-			Console.WriteLine($"\nPress any key to exit...");
-			Console.ReadKey();
+
 		}
 
 		/// <summary>
@@ -302,10 +303,11 @@ namespace MSAL.Net_GroupOveragesClaim
 				sources = token.Claims.First(c => c.Type == "_claim_sources").Value;
 				originalUrl = sources.Split("{\"" + claim.Split("{\"groups\":\"")[1].Replace("}","").Replace("\"","") + "\":{\"endpoint\":\"")[1].Replace("}","").Replace("\"", "");
 				
-				newUrl = $"https://graph.microsoft.com/v1.0/users/{userId}/memberOf";
+				// make sure the endpoint is specific for your tenant -- .gov for example for gov tenants, etc.
+				newUrl = $"https://graph.microsoft.com/v1.0/users/{userId}/memberOf?$orderby=displayName&$count=true";
 
 				Console.WriteLine($"Original Overage URL: {originalUrl}");
-				Console.WriteLine($"New URL: {newUrl}");
+				//Console.WriteLine($"New URL: {newUrl}");
 
 
 			} catch {
@@ -336,10 +338,16 @@ namespace MSAL.Net_GroupOveragesClaim
 
 			// add the bearer token to the authorization header for this request
 			_httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue( "Bearer", user_access_token);
-
+			
+			// adding the consistencylevel header value if there is a $count parameter in the request as this is needed to get a count
+			// this only needs to be done one time so only add it if it does not exist already.  It is case sensitive as well.
+			// if this value is not added to the header, the results will not sort properly -- if that even matters for your scenario
 			if(url.Contains("&$count", StringComparison.OrdinalIgnoreCase))
             {
-				_httpClient.DefaultRequestHeaders.Add("ConsistencyLevel", "eventual");
+                if (!_httpClient.DefaultRequestHeaders.Contains("ConsistencyLevel"))
+                {
+					_httpClient.DefaultRequestHeaders.Add("ConsistencyLevel", "eventual");
+                }
             }
 			
 			// while loop to handle paging
@@ -384,7 +392,10 @@ namespace MSAL.Net_GroupOveragesClaim
 							}
 						}
 					}
-				} 
+				} else
+                {
+					Console.WriteLine($"Error making graph request:\n{response.ToString()}");
+                }
 			} // end while loop
 	
 			return groups;
@@ -395,7 +406,7 @@ namespace MSAL.Net_GroupOveragesClaim
 		/// </summary>
 		/// <param name="graphToken"></param>
 		/// <returns>List of Microsoft Graph Groups</returns>
-		private static async Task<List<Group>> Get_GroupList_GraphSDK(string graphToken, bool me_endpoint)
+		private static async Task<List<Group>> Get_GroupList_GraphSDK(string graphToken, bool use_me_endpoint)
         {
 
 			GraphServiceClient client;
@@ -405,14 +416,26 @@ namespace MSAL.Net_GroupOveragesClaim
 			client = new GraphServiceClient(authProvider);
 			IUserMemberOfCollectionWithReferencesPage membershipPage = null;
 
-			if (me_endpoint)
+			HeaderOption option = new HeaderOption("ConsistencyLevel","eventual");
+
+			if (use_me_endpoint)
             {
+                if (!client.Me.MemberOf.Request().Headers.Contains(option))
+                {
+					client.Me.MemberOf.Request().Headers.Add(option);
+                }
+
 				membershipPage = await client.Me.MemberOf
 					.Request()
 					.OrderBy("displayName&$count=true") // todo: find the right way to add the generic query string value for count
 					.GetAsync();
             } else
             {
+                if (!client.Users[userId].MemberOf.Request().Headers.Contains(option))
+                {
+					client.Users[userId].MemberOf.Request().Headers.Add(option);
+                }
+
 				membershipPage = await client.Users[userId].MemberOf
 					.Request()
 					.OrderBy("displayName&$count=true")
