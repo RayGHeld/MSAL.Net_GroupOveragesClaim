@@ -102,7 +102,7 @@ namespace MSAL.Net_GroupOveragesClaim
 			string groupOveragesUrl = Get_GroupsOverageClaimURL(accessToken);
 
 			// if there is a value for groupOveragesUrl, then we need to make a graph call for groups
-			Console.WriteLine($"Group claim: {groupOveragesUrl}");
+			Console.WriteLine($"\nNew Microsoft Graph Group Membership URL:\n{groupOveragesUrl}");
 
 			if(groupOveragesUrl != string.Empty)
             {
@@ -138,7 +138,7 @@ namespace MSAL.Net_GroupOveragesClaim
 						Console.WriteLine($"How do you want to get the groups?\n1: .Net HTTP Request\n2: Graph .Net SDK");
 						Console.Write("Enter choice > ");
 						choice = Console.ReadLine();
-
+						
 						switch (choice.Trim())
 						{
 							case "1":
@@ -148,6 +148,9 @@ namespace MSAL.Net_GroupOveragesClaim
 							case "2":
 								Console.WriteLine("Getting group list via the Graph .Net SDK...");
 								Get_Groups_GraphSDK_Method(graphToken, !client_credentials).Wait();
+								break;
+							default:
+								Console.WriteLine("Not a valid choice...");
 								break;
 						}
                     }
@@ -306,7 +309,7 @@ namespace MSAL.Net_GroupOveragesClaim
 				// make sure the endpoint is specific for your tenant -- .gov for example for gov tenants, etc.
 				newUrl = $"https://graph.microsoft.com/v1.0/users/{userId}/memberOf?$orderby=displayName&$count=true";
 
-				Console.WriteLine($"Original Overage URL: {originalUrl}");
+				Console.WriteLine($"Original Overage URL:\n{originalUrl}");
 				//Console.WriteLine($"New URL: {newUrl}");
 
 
